@@ -1,0 +1,30 @@
+/*
+ * Copyright (c) 2024-Present Perracodex. Use of this source code is governed by an MIT license.
+ */
+
+plugins {
+    id("kotlin-library")
+    id("maven-publish")
+}
+
+group = project.properties["group"] as String
+version = project.properties["version"] as String
+
+// Module-specific properties for Maven publishing.
+ext {
+    set("artifactId", "exposed-pagination-rest")
+    set("pomName", "Exposed Pagination REST")
+    set("pomDescription", "Ktor integration for Exposed ORM pagination, providing request parameter parsing.")
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    api(project(":core"))
+    implementation(libs.ktor.server.core)
+    detektPlugins(libs.detekt.formatting)
+    testImplementation(kotlin("test"))
+}
