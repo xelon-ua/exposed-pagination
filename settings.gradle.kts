@@ -19,3 +19,4 @@ rootProject.name = "ExposedPagination"
 include(":core")
 include(":rest")
 include(":jdbc")
+include(":integration-tests")
