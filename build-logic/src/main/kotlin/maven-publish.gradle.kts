@@ -4,9 +4,7 @@
 
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
-import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.configurationcache.extensions.capitalized
-import java.io.File
 
 plugins {
     signing
@@ -38,11 +36,7 @@ mavenPublishing {
         version = project.version as String
     )
 
-    publishToMavenCentral(
-        host = SonatypeHost.CENTRAL_PORTAL,
-        automaticRelease = false
-    )
-
+    publishToMavenCentral()
     signAllPublications()
 
     pom {
@@ -59,7 +53,7 @@ mavenPublishing {
             developer {
                 id.set(developer)
                 name.set(developer.capitalized())
-                email.set(System.getenv("DEVELOPER_EMAIL"))
+                //email.set(System.getenv("DEVELOPER_EMAIL"))
                 url = "https://$repository"
             }
         }
@@ -68,20 +62,5 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://$repositoryConnection/$artifactId.git")
             url.set("https://$repository/$artifactId")
         }
-    }
-}
-
-signing {
-    val privateKeyPath: String? = System.getenv("MAVEN_SIGNING_KEY_PATH")
-    val passphrase: String? = System.getenv("MAVEN_SIGNING_KEY_PASSPHRASE")
-
-    if (privateKeyPath.isNullOrBlank()) {
-        println("MAVEN_SIGNING_KEY_PATH is not set. Skipping signing.")
-    } else if (passphrase.isNullOrBlank()) {
-        println("MAVEN_SIGNING_KEY_PASSPHRASE is not set. Skipping signing.")
-    } else {
-        val privateKey: String = File(privateKeyPath).readText()
-        useInMemoryPgpKeys(privateKey, passphrase)
-        sign(publishing.publications)
     }
 }
