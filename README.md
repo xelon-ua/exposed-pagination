@@ -1,7 +1,12 @@
-# [Exposed Pagination Library](https://github.com/perracodex/exposed-pagination)
+# [Exposed Pagination Library](https://github.com/xelon-ua/exposed-pagination)
+
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.xelon-ua.exposed-pagination/exposed-pagination-core)](https://central.sonatype.com/artifact/io.github.xelon-ua.exposed-pagination/exposed-pagination-core)
 
 A Kotlin library providing pagination support for the [Exposed](https://github.com/JetBrains/Exposed) ORM framework,
 including integration with the [Ktor](https://ktor.io/) server framework.
+
+This project is an evolution of the original
+library: [perracodex/exposed-pagination](https://github.com/perracodex/exposed-pagination).
 
 ---
 
@@ -9,6 +14,8 @@ including integration with the [Ktor](https://ktor.io/) server framework.
 
 - **Easy Pagination**: Apply pagination to Exposed queries with a single function call.
 - **Sorting Support**: Sort query results based on multiple fields and directions.
+- **Union/Subquery Sorting**: Sort by expression aliases (e.g. fields defined via `Expression.alias("...")`), which
+  enables sorting on union queries and aliased subqueries.
 - **Page Information**: Access detailed pagination information like total pages, current page index, and more.
 - **Ktor Integration**: Extract pagination directives from Ktor requests with a single function call.
 - **Flexible Pagination**: Support for both page-based and position-based pagination.
@@ -17,13 +24,29 @@ including integration with the [Ktor](https://ktor.io/) server framework.
 
 ---
 
+### Modules
+
+The library is published as multiple artifacts so you can include only what you use:
+
+| Module              | Artifact ID               | What it provides                                                                             |
+|---------------------|---------------------------|----------------------------------------------------------------------------------------------|
+| `core`              | `exposed-pagination-core` | Core models: `Pageable`, `Page`, `PaginationError` (only `kotlinx-serialization` dependency) |
+| `rest`              | `exposed-pagination-rest` | Ktor request parsing: `ApplicationCall.getPageable()`                                        |
+| `jdbc`              | `exposed-pagination-jdbc` | Exposed query pagination: `Query.paginate(...)` and `MapModel`                               |
+| `integration-tests` | *(not published)*         | End-to-end tests (Ktor Test Host + H2 + Kotest)                                              |
+
+Dependency-wise, `core` is the base module; `rest` and `jdbc` depend on `core`.
+
 ### Installation
 
 Add the library to your project gradle dependencies.
 
 ```kotlin
 dependencies {
-    implementation("io.github.perracodex:exposed-pagination:<VERSION>")
+    // Pick what you need:
+    implementation("io.github.xelon-ua.exposed-pagination:exposed-pagination-core:<VERSION>") // models
+    implementation("io.github.xelon-ua.exposed-pagination:exposed-pagination-rest:<VERSION>") // Ktor integration
+    implementation("io.github.xelon-ua.exposed-pagination:exposed-pagination-jdbc:<VERSION>") // Exposed pagination
 }
 ```
 
@@ -31,6 +54,7 @@ dependencies {
 
 | **ExposedPagination** | **Exposed**    | Ktor  | **Kotlin** |
 |-----------------------|----------------|-------|------------|
+| 1.1.1                 | \>= 1.0.0-rc-4 | 3.3.2 | \>= 2.2.21 |
 | 1.0.13                | \>= 1.0.0-rc-1 | 3.3.0 | \>= 2.2.20 |
 | 1.0.12                | = 1.0.0-beta-5 | 3.2.3 | \>= 2.2.0  |
 | 1.0.11                | = 0.61.0       | 3.1.2 | \>= 2.1.20 |
@@ -40,7 +64,8 @@ dependencies {
 ### Usage
 
 _See also
-the [API reference documentation](https://www.javadoc.io/doc/io.github.perracodex/exposed-pagination/latest/-exposed-pagination/io.perracodex.exposed.pagination/index.html)._
+the API reference documentation on `javadoc.io` for the artifact you depend on (for
+example, `exposed-pagination-core`, `exposed-pagination-rest`, or `exposed-pagination-jdbc`)._
 
 #### Ktor Integration
 
@@ -236,6 +261,14 @@ Note: `page` and `position` are mutually exclusive; do not provide both in the s
 
 **Note:** If no sort directive is specified, it will default to `ASC`.
 
+#### Sorting field resolution
+
+When applying sorting to an Exposed `Query`, the library resolves the sort field using:
+
+- **Expression aliases first**: if the selected query contains an `Expression.alias("aliasName")`, you can sort by
+  `aliasName` (case-insensitive). This is particularly useful for **union queries** and **aliased subqueries**.
+- **Then table fields**: sort by `fieldName`, or disambiguate with `tableName.fieldName`.
+
 --- 
 
 ### Samples:
@@ -280,6 +313,25 @@ Syntax: `sort=tableName.fieldName,asc`
 
 ```bash
 `GET` http://localhost:8080/v1/employees?page=0&size=10&sort=employee.firstName,asc&sort=managers.firstName,desc
+```
+
+---
+
+### Sorting union queries (expression aliases)
+
+If your query uses unions or subqueries where sort fields are computed or renamed, select those fields with
+`Expression.alias(...)` and reference the alias in `Pageable.PageSort.field`:
+
+```kotlin
+val unionQuery = employeesQuery.union(contractorsQuery).alias("workers")
+val pageable = Pageable(
+    page = 0,
+    position = null,
+    size = 10,
+    sort = listOf(Pageable.PageSort(field = "rate", direction = Pageable.PageDirection.DESC))
+)
+
+unionQuery.selectAll().paginate(pageable, workerMapper)
 ```
 
 ---
