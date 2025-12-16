@@ -4,9 +4,7 @@
 
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
-import com.vanniktech.maven.publish.SonatypeHost
-import org.gradle.configurationcache.extensions.capitalized
-import java.io.File
+import java.util.Locale
 
 plugins {
     signing
@@ -14,16 +12,20 @@ plugins {
     id("com.vanniktech.maven.publish")
 }
 
+val artifactId: String = (project.properties["artifactId"] as String) + "-" + project.name
+
 // https://central.sonatype.com/account
 // https://central.sonatype.com/publishing/deployments
 // https://vanniktech.github.io/gradle-maven-publish-plugin/central/#automatic-release
 mavenPublishing {
-    val artifactId: String = project.properties["artifactId"] as String
     val repository: String = project.properties["repository"] as String
     val repositoryConnection: String = project.properties["repositoryConnection"] as String
     val developer: String = project.properties["developer"] as String
-    val pomName: String = project.properties["pomName"] as String
-    val pomDescription: String = project.properties["pomDescription"] as String
+    // Allow module-specific pomName and pomDescription via ext, fallback to gradle.properties
+    val pomName: String = project.extra.properties["pomName"] as? String
+        ?: project.properties["pomName"] as String
+    val pomDescription: String = project.extra.properties["pomDescription"] as? String
+        ?: project.properties["pomDescription"] as String
 
     configure(
         KotlinJvm(
@@ -39,7 +41,6 @@ mavenPublishing {
     )
 
     publishToMavenCentral(
-        host = SonatypeHost.CENTRAL_PORTAL,
         automaticRelease = false
     )
 
@@ -58,7 +59,7 @@ mavenPublishing {
         developers {
             developer {
                 id.set(developer)
-                name.set(developer.capitalized())
+                name.set(developer.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() })
                 email.set(System.getenv("DEVELOPER_EMAIL"))
                 url = "https://$repository"
             }

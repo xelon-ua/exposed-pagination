@@ -4,7 +4,7 @@
 
 plugins {
     id("kotlin-library")
-    id("maven-publish")
+    id("vanniktech-publish")
 }
 
 group = project.properties["group"] as String
@@ -12,14 +12,8 @@ version = project.properties["version"] as String
 
 // Module-specific properties for Maven publishing.
 ext {
-    set("artifactId", "exposed-pagination-jdbc")
     set("pomName", "Exposed Pagination JDBC")
     set("pomDescription", "JDBC integration for Exposed ORM pagination, providing query pagination support.")
-}
-
-repositories {
-    mavenCentral()
-    mavenLocal()
 }
 
 dependencies {
