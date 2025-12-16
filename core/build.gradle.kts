@@ -14,7 +14,6 @@ version = project.properties["version"] as String
 
 // Module-specific properties for Maven publishing.
 ext {
-    set("artifactId", "exposed-pagination-core")
     set("pomName", "Exposed Pagination Core")
     set("pomDescription", "Core models for Exposed ORM pagination support.")
 }

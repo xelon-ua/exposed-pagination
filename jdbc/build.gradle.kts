@@ -17,11 +17,6 @@ ext {
     set("pomDescription", "JDBC integration for Exposed ORM pagination, providing query pagination support.")
 }
 
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
-
 dependencies {
     api(project(":core"))
     implementation(libs.exposed.core)

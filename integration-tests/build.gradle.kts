@@ -11,11 +11,6 @@ kotlin {
     explicitApi = null
 }
 
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
-
 dependencies {
     testImplementation(project(":core"))
     testImplementation(project(":jdbc"))

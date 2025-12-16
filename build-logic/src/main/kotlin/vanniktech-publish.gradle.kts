@@ -10,6 +10,8 @@ plugins {
     id("org.jetbrains.dokka")
 }
 
+val artifactId: String = (project.properties["artifactId"] as String) + "-" + project.name
+
 // https://central.sonatype.com/account
 // https://central.sonatype.com/publishing/deployments
 // https://vanniktech.github.io/gradle-maven-publish-plugin/central/#automatic-release
@@ -17,12 +19,15 @@ mavenPublishing {
     publishToMavenCentral()
     signAllPublications()
 
-    val artifactId: String = project.properties["artifactId"] as String
     val repository: String = project.properties["repository"] as String
     val repositoryConnection: String = project.properties["repositoryConnection"] as String
     val developer: String = project.properties["developer"] as String
-    val pomName: String = project.properties["pomName"] as String
-    val pomDescription: String = project.properties["pomDescription"] as String
+
+    // Allow module-specific pomName and pomDescription via ext, fallback to gradle.properties
+    val pomName: String = project.extra.properties["pomName"] as? String
+        ?: project.properties["pomName"] as String
+    val pomDescription: String = project.extra.properties["pomDescription"] as? String
+        ?: project.properties["pomDescription"] as String
 
     coordinates(
         groupId = project.group as String,
