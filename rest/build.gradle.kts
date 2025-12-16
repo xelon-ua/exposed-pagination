@@ -4,7 +4,7 @@
 
 plugins {
     id("kotlin-library")
-    id("maven-publish")
+    id("vanniktech-publish")
 }
 
 group = project.properties["group"] as String

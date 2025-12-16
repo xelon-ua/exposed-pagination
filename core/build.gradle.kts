@@ -3,8 +3,10 @@
  */
 
 plugins {
+    //alias(libs.plugins.kotlin.jvm)
     id("kotlin-library")
-    id("maven-publish")
+    id("vanniktech-publish")
+    //alias(libs.plugins.vanniktech)
 }
 
 group = project.properties["group"] as String
@@ -15,11 +17,6 @@ ext {
     set("artifactId", "exposed-pagination-core")
     set("pomName", "Exposed Pagination Core")
     set("pomDescription", "Core models for Exposed ORM pagination support.")
-}
-
-repositories {
-    mavenCentral()
-    mavenLocal()
 }
 
 dependencies {

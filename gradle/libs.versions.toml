@@ -2,15 +2,15 @@
 
 [versions]
 
-detekt = "1.23.7"
-dokka = "2.0.0"
+detekt = "1.23.8"
+dokka = "2.1.0"
 exposed = "1.0.0-rc-4"
 h2 = "2.3.232"
 kotest = "6.0.0.M1"
 kotlin = "2.2.21"
 kotlinx-serialization = "1.9.0"
 ktor = "3.3.2"
-vanniktech = "0.30.0"
+vanniktech = "0.35.0"
 
 
 [plugins]
@@ -82,3 +82,10 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+
+# --- Gradle Build Plugins ---
+gradle-kotlin-jvm = { module = "org.jetbrains.kotlin.jvm:org.jetbrains.kotlin.jvm.gradle.plugin", version.ref = "kotlin" }
+gradle-maven-publish = { module = "com.vanniktech.maven.publish:com.vanniktech.maven.publish.gradle.plugin", version.ref = "vanniktech" }
+gradle-detekt = { module = "io.gitlab.arturbosch.detekt:io.gitlab.arturbosch.detekt.gradle.plugin", version.ref = "detekt" }
+gradle-dokka = { module = "org.jetbrains.dokka:org.jetbrains.dokka.gradle.plugin", version.ref = "dokka" }
+gradle-kotlin-serialization = { module = "org.jetbrains.kotlin.plugin.serialization:org.jetbrains.kotlin.plugin.serialization.gradle.plugin", version.ref = "kotlin" }

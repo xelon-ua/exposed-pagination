@@ -3,13 +3,27 @@
  */
 
 plugins {
+    `version-catalog`
     `kotlin-dsl`
 }
 
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
+}
+
 dependencies {
-    implementation(libs.plugins.kotlin.jvm.get().let { "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}" })
-    implementation(libs.plugins.kotlin.serialization.get().let { "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}" })
-    implementation(libs.plugins.dokka.get().let { "org.jetbrains.dokka:dokka-gradle-plugin:${it.version}" })
-    implementation(libs.plugins.vanniktech.get().let { "com.vanniktech:gradle-maven-publish-plugin:${it.version}" })
-    implementation(libs.plugins.detekt.get().let { "io.gitlab.arturbosch.detekt:detekt-gradle-plugin:${it.version}" })
+    compileOnly(gradleApi())
+    compileOnly(gradleKotlinDsl())
+
+    implementation(libs.gradle.kotlin.jvm)
+    implementation(libs.gradle.kotlin.serialization)
+    implementation(libs.gradle.dokka)
+    implementation(libs.gradle.maven.publish)
+    implementation(libs.gradle.detekt)
+}
+
+// Configure Kotlin compiler for better IDE support
+kotlin {
+    jvmToolchain(17)
 }
