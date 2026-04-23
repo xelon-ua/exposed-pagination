@@ -45,9 +45,12 @@ import org.jetbrains.exposed.v1.jdbc.select
  * @see [Query.paginate]
  */
 public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page<T> {
-    // Calculate total elements before pagination.
-    val totalElements: Long = this.count()
-    if (totalElements == 0L) {
+    // For paginated queries, a dedicated COUNT query is required since the main query
+    // returns only a subset. For unpaginated queries, the total is derived from the
+    // fetched content, avoiding an otherwise unnecessary database round-trip.
+    val isPaginated: Boolean = pageable != null && pageable.size > 0
+    val precomputedTotal: Long? = if (isPaginated) this.count() else null
+    if (precomputedTotal == 0L) {
         return Page.empty(pageable = pageable)
     }
 
@@ -61,7 +64,7 @@ public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page
 
     return Page.build(
         content = content,
-        totalElements = totalElements.toInt(),
+        totalElements = precomputedTotal?.toInt() ?: content.size,
         pageable = pageable
     )
 }
@@ -113,39 +116,48 @@ public fun <T : Any, K> Query.paginate(
     map: MapModel<T>,
     groupBy: Column<K>
 ): Page<T> {
-    // Calculate the total number of top-level entities (distinct values of the groupBy column).
-    // For 1 -> N relationships, this ensures we count only the top-level entities, not all rows.
-    val totalElements: Long = this.copy()
-        .adjustSelect { select(groupBy.countDistinct()) }
-        .first()[groupBy.countDistinct()]
-    if (totalElements == 0L) {
+    // For paginated queries, a dedicated COUNT DISTINCT query plus a key sub-query are
+    // required to slice by top-level entity. For unpaginated queries, the entire result
+    // is fetched in a single query (with sorting applied) and the total is derived from
+    // the number of distinct groups, avoiding two otherwise unnecessary round-trips.
+    val isPaginated: Boolean = pageable != null && pageable.size > 0
+    val precomputedTotal: Long? = if (isPaginated) {
+        this.copy()
+            .adjustSelect { select(groupBy.countDistinct()) }
+            .first()[groupBy.countDistinct()]
+    } else {
+        null
+    }
+    if (precomputedTotal == 0L) {
         return Page.empty(pageable = pageable)
     }
 
-    // Construct the paginated keys query for the top-level entities.
-    val paginatedKeys: Query = this.copy()
-        .adjustSelect { select(groupBy) }
-        .groupBy(groupBy)
-        .paginate(pageable = pageable)
+    val records: List<ResultRow> = if (isPaginated) {
+        // Construct the paginated keys query for the top-level entities,
+        // then fetch the records that correspond to those keys.
+        val paginatedKeys: Query = this.copy()
+            .adjustSelect { select(groupBy) }
+            .groupBy(groupBy)
+            .paginate(pageable = pageable)
 
-    // Fetch the records that correspond to the paginated keys.
-    val records: List<ResultRow> = this.copy()
-        .andWhere { groupBy inSubQuery paginatedKeys }
-        .toList()
-    if (records.isEmpty()) {
-        return Page.empty(pageable = pageable)
+        this.copy()
+            .andWhere { groupBy inSubQuery paginatedKeys }
+            .toList()
+    } else {
+        // Without pagination the key sub-query would match every top-level entity,
+        // so the main query is fetched directly with sorting applied.
+        this.copy().paginate(pageable = pageable).toList()
     }
 
     // Map each group of rows to the corresponding domain model.
-    val content: List<T> = records
-        .groupBy { it[groupBy] }
-        .mapNotNull { (_, groupRows) ->
-            map.from(rows = groupRows)
-        }
+    val grouped: Map<K, List<ResultRow>> = records.groupBy { it[groupBy] }
+    val content: List<T> = grouped.mapNotNull { (_, groupRows) ->
+        map.from(rows = groupRows)
+    }
 
     return Page.build(
         content = content,
-        totalElements = totalElements.toInt(),
+        totalElements = precomputedTotal?.toInt() ?: grouped.size,
         pageable = pageable
     )
 }
