@@ -25,6 +25,10 @@ public data class Pageable(
         require(value = (page >= 0)) { "Page index must be >= 0." }
         require(value = (position == null || position >= 0)) { "Position must be >= 0 when provided." }
         require(value = (size >= 0)) { "Page size must be >= 0. (0 means all elements)." }
+        require(value = (size > 0 || page == 0)) { "Page index must be 0 when size is 0 (no pagination)." }
+        require(value = (size > 0 || position == null || position == 0)) {
+            "Position must be null or 0 when size is 0 (no pagination)."
+        }
     }
 
     /**

@@ -21,5 +21,6 @@ ext {
 dependencies {
     implementation(libs.kotlinx.serialization)
     detektPlugins(libs.detekt.formatting)
-    testImplementation(kotlin("test"))
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotest.assertions.core)
 }
