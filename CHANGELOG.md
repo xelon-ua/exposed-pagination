@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.1] - 2026-04-23
+
+### Changed
+
+- Optimized `Query.paginate` to skip the redundant `COUNT` query when no pagination is applied
+  (`pageable` is `null` or `size == 0`); `totalElements` is now derived from the fetched content
+  in that case.
+- Optimized the `groupBy` overload of `Query.paginate`: when no pagination is applied, it now
+  issues a single query instead of three (previously `COUNT DISTINCT` + keys sub-query + main
+  fetch); the distinct total is derived from the number of groups in the result.
+
+Paginated behavior (`size > 0`) is unchanged — `COUNT` is still issued to keep `totalPages`,
+`hasNext`, and `isOverflow` metadata correct.
+
 ## [1.2.0] - 2026-04-16
 
 ### Changed
