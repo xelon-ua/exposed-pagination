@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] - 2026-05-14
+
+### Changed
+
+- Updated Exposed from `1.2.0` to `1.3.0`.
+- Updated Kotlin from `2.3.20` to `2.3.21`.
+- Updated Ktor from `3.4.2` to `3.4.3`.
+
 ## [1.2.1] - 2026-04-23
 
 ### Changed
