@@ -4,11 +4,15 @@
 
 package io.perracodex.exposed.pagination
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SqlLogger
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.StatementContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -140,6 +144,56 @@ class PaginationQueryTest : FunSpec({
             page.content.size shouldBe 10
             page.content.first().name shouldBe "Item 6"
             page.details.position shouldBe 5
+        }
+    }
+
+    test("knownTotal is used as the total and skips the COUNT query") {
+        val captured = mutableListOf<String>()
+        val page = transaction(database) {
+            addLogger(object : SqlLogger {
+                override fun log(context: StatementContext, transaction: Transaction) {
+                    captured += context.sql(transaction)
+                }
+            })
+            testTable.selectAll().paginate(
+                pageable = Pageable(page = 0, position = 10, size = 5, sort = null, knownTotal = 25),
+                map = testItemMapper
+            )
+        }
+        page.details.totalElements shouldBe 25
+        page.content.size shouldBe 5
+        captured.any { it.contains("COUNT", ignoreCase = true) } shouldBe false
+    }
+
+    test("without knownTotal a COUNT query is still issued") {
+        val captured = mutableListOf<String>()
+        transaction(database) {
+            addLogger(object : SqlLogger {
+                override fun log(context: StatementContext, transaction: Transaction) {
+                    captured += context.sql(transaction)
+                }
+            })
+            testTable.selectAll().paginate(
+                pageable = Pageable(page = 0, position = 10, size = 5),
+                map = testItemMapper
+            )
+        }
+        captured.any { it.contains("COUNT", ignoreCase = true) } shouldBe true
+    }
+
+    test("knownTotal of zero short-circuits to an empty page") {
+        val page = transaction(database) {
+            testTable.selectAll().paginate(
+                pageable = Pageable(page = 0, position = 0, size = 5, sort = null, knownTotal = 0),
+                map = testItemMapper
+            )
+        }
+        page.content.size shouldBe 0
+    }
+
+    test("a negative knownTotal is rejected") {
+        shouldThrow<IllegalArgumentException> {
+            Pageable(page = 0, position = 0, size = 5, sort = null, knownTotal = -1)
         }
     }
 })

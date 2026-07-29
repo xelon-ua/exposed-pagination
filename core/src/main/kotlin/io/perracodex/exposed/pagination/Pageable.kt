@@ -13,13 +13,16 @@ import kotlinx.serialization.Serializable
  * @property position Optional absolute zero-based starting position within the full result set.
  * @property size The maximum number of elements to include in a single page. `0` to return all elements without pagination.
  * @property sort An optional list of [PageSort] directives to order the results.
+ * @property knownTotal Optional caller-supplied total element count. When provided for a paginated
+ * query, it is used instead of issuing a dedicated `COUNT` query.
  */
 @Serializable
 public data class Pageable(
     val page: Int,
     val position: Int?,
     val size: Int,
-    val sort: List<PageSort>? = null
+    val sort: List<PageSort>? = null,
+    val knownTotal: Int? = null
 ) {
     init {
         require(value = (page >= 0)) { "Page index must be >= 0." }
@@ -29,6 +32,7 @@ public data class Pageable(
         require(value = (size > 0 || position == null || position == 0)) {
             "Position must be null or 0 when size is 0 (no pagination)."
         }
+        require(value = (knownTotal == null || knownTotal >= 0)) { "Known total must be >= 0 when provided." }
     }
 
     /**

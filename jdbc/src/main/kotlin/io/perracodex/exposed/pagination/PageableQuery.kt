@@ -46,10 +46,13 @@ import org.jetbrains.exposed.v1.jdbc.select
  */
 public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page<T> {
     // For paginated queries, a dedicated COUNT query is required since the main query
-    // returns only a subset. For unpaginated queries, the total is derived from the
-    // fetched content, avoiding an otherwise unnecessary database round-trip.
+    // returns only a subset. A caller that already knows the total (for example, one
+    // resuming a traversal) can supply it via `knownTotal` and skip that round-trip.
+    // For unpaginated queries, the total is derived from the fetched content, avoiding
+    // an otherwise unnecessary database round-trip.
     val isPaginated: Boolean = pageable != null && pageable.size > 0
-    val precomputedTotal: Long? = if (isPaginated) this.count() else null
+    val precomputedTotal: Long? = pageable?.knownTotal?.toLong()
+        ?: if (isPaginated) this.count() else null
     if (precomputedTotal == 0L) {
         return Page.empty(pageable = pageable)
     }
@@ -117,11 +120,13 @@ public fun <T : Any, K> Query.paginate(
     groupBy: Column<K>
 ): Page<T> {
     // For paginated queries, a dedicated COUNT DISTINCT query plus a key sub-query are
-    // required to slice by top-level entity. For unpaginated queries, the entire result
-    // is fetched in a single query (with sorting applied) and the total is derived from
-    // the number of distinct groups, avoiding two otherwise unnecessary round-trips.
+    // required to slice by top-level entity. A caller that already knows the total (for
+    // example, one resuming a traversal) can supply it via `knownTotal` and skip that
+    // round-trip. For unpaginated queries, the entire result is fetched in a single query
+    // (with sorting applied) and the total is derived from the number of distinct groups,
+    // avoiding two otherwise unnecessary round-trips.
     val isPaginated: Boolean = pageable != null && pageable.size > 0
-    val precomputedTotal: Long? = if (isPaginated) {
+    val precomputedTotal: Long? = pageable?.knownTotal?.toLong() ?: if (isPaginated) {
         this.copy()
             .adjustSelect { select(groupBy.countDistinct()) }
             .first()[groupBy.countDistinct()]
