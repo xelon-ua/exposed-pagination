@@ -46,11 +46,11 @@ import org.jetbrains.exposed.v1.jdbc.select
  */
 public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page<T> {
     // For paginated queries, a dedicated COUNT query is required since the main query
-    // returns only a subset — unless the caller supplies `knownTotal`. For unpaginated
-    // queries, the total is derived from the fetched content.
+    // returns only a subset — unless the caller supplies a non-zero `knownTotal`. For
+    // unpaginated queries, the total is derived from the fetched content.
     val isPaginated: Boolean = pageable != null && pageable.size > 0
     val precomputedTotal: Long? = if (isPaginated) {
-        pageable.knownTotal?.toLong() ?: this.count()
+        pageable.knownTotal?.takeIf { it > 0 }?.toLong() ?: this.count()
     } else {
         null
     }
@@ -120,12 +120,12 @@ public fun <T : Any, K> Query.paginate(
     map: MapModel<T>,
     groupBy: Column<K>
 ): Page<T> {
-    // For paginated queries, a dedicated COUNT DISTINCT query plus a key sub-query are
-    // required to slice by top-level entity — unless the caller supplies `knownTotal`.
-    // For unpaginated queries, the total is derived from the number of distinct groups.
+    // For paginated queries, a dedicated COUNT DISTINCT query plus a key sub-query are required
+    // to slice by top-level entity — unless the caller supplies a non-zero `knownTotal`. For
+    // unpaginated queries, the total is derived from the number of distinct groups.
     val isPaginated: Boolean = pageable != null && pageable.size > 0
     val precomputedTotal: Long? = if (isPaginated) {
-        pageable.knownTotal?.toLong() ?: this.copy()
+        pageable.knownTotal?.takeIf { it > 0 }?.toLong() ?: this.copy()
             .adjustSelect { select(groupBy.countDistinct()) }
             .first()[groupBy.countDistinct()]
     } else {

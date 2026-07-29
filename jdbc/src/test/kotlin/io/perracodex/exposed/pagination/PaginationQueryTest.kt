@@ -6,6 +6,7 @@ package io.perracodex.exposed.pagination
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SqlLogger
@@ -181,14 +182,38 @@ class PaginationQueryTest : FunSpec({
         captured.any { it.contains("COUNT", ignoreCase = true) } shouldBe true
     }
 
-    test("knownTotal of zero short-circuits to an empty page") {
+    test("knownTotal of zero is treated as absent and the content is still fetched") {
+        val captured = mutableListOf<String>()
         val page = transaction(database) {
+            addLogger(object : SqlLogger {
+                override fun log(context: StatementContext, transaction: Transaction) {
+                    captured += context.sql(transaction)
+                }
+            })
             testTable.selectAll().paginate(
                 pageable = Pageable(page = 0, position = 0, size = 5, sort = null, knownTotal = 0),
                 map = testItemMapper
             )
         }
-        page.content.size shouldBe 0
+        page.content.size shouldBe 5
+        page.details.totalElements shouldBe 25
+        page.details.totalPages shouldBe 5
+        page.details.hasNext shouldBe true
+        captured.any { it.contains("COUNT", ignoreCase = true) } shouldBe true
+    }
+
+    test("an empty page is only returned when the database reports no elements") {
+        val page = transaction(database) {
+            testTable.selectAll()
+                .where { testTable.id eq -1 }
+                .paginate(
+                    pageable = Pageable(page = 0, position = 0, size = 5, sort = null, knownTotal = 0),
+                    map = testItemMapper
+                )
+        }
+        page.content.shouldBeEmpty()
+        page.details.totalElements shouldBe 0
+        page.details.totalPages shouldBe 0
     }
 
     test("a negative knownTotal is rejected") {
