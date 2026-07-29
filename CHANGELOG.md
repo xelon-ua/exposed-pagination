@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## [1.4.1] - 2026-07-30
+## [1.5.0] - 2026-07-30
 
 ### Changed
 
@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file.
   as usual and fetches the content, instead of short-circuiting to an empty page. An empty page
   is therefore only returned when the database itself reports no elements. Non-zero values are
   unaffected.
+- Updated Kotlin from `2.3.21` to `2.4.10`.
+- Updated Ktor from `3.4.3` to `3.5.1`.
 
 ## [1.4.0] - 2026-07-29
 
