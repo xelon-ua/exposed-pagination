@@ -48,11 +48,16 @@ public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page
     // For paginated queries, a dedicated COUNT query is required since the main query
     // returns only a subset. A caller that already knows the total (for example, one
     // resuming a traversal) can supply it via `knownTotal` and skip that round-trip.
-    // For unpaginated queries, the total is derived from the fetched content, avoiding
-    // an otherwise unnecessary database round-trip.
+    // For unpaginated queries, the total is always derived from the fetched content:
+    // `knownTotal` is ignored there since the entire result set is already at hand,
+    // and honouring it would let a stale or mismatched caller-supplied value disagree
+    // with the actual content size.
     val isPaginated: Boolean = pageable != null && pageable.size > 0
-    val precomputedTotal: Long? = pageable?.knownTotal?.toLong()
-        ?: if (isPaginated) this.count() else null
+    val precomputedTotal: Long? = if (isPaginated) {
+        pageable.knownTotal?.toLong() ?: this.count()
+    } else {
+        null
+    }
     if (precomputedTotal == 0L) {
         return Page.empty(pageable = pageable)
     }
@@ -123,11 +128,13 @@ public fun <T : Any, K> Query.paginate(
     // required to slice by top-level entity. A caller that already knows the total (for
     // example, one resuming a traversal) can supply it via `knownTotal` and skip that
     // round-trip. For unpaginated queries, the entire result is fetched in a single query
-    // (with sorting applied) and the total is derived from the number of distinct groups,
-    // avoiding two otherwise unnecessary round-trips.
+    // (with sorting applied) and the total is derived from the number of distinct groups:
+    // `knownTotal` is ignored there since the entire result set is already at hand, and
+    // honouring it would let a stale or mismatched caller-supplied value disagree with the
+    // actual number of groups.
     val isPaginated: Boolean = pageable != null && pageable.size > 0
-    val precomputedTotal: Long? = pageable?.knownTotal?.toLong() ?: if (isPaginated) {
-        this.copy()
+    val precomputedTotal: Long? = if (isPaginated) {
+        pageable.knownTotal?.toLong() ?: this.copy()
             .adjustSelect { select(groupBy.countDistinct()) }
             .first()[groupBy.countDistinct()]
     } else {

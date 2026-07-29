@@ -196,4 +196,15 @@ class PaginationQueryTest : FunSpec({
             Pageable(page = 0, position = 0, size = 5, sort = null, knownTotal = -1)
         }
     }
+
+    test("knownTotal is ignored when size is 0 and the total is derived from the content") {
+        val page = transaction(database) {
+            testTable.selectAll().paginate(
+                pageable = Pageable(page = 0, position = null, size = 0, sort = null, knownTotal = 5),
+                map = testItemMapper
+            )
+        }
+        page.content.size shouldBe 25
+        page.details.totalElements shouldBe 25
+    }
 })
