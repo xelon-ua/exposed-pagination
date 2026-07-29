@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.1] - 2026-07-30
+
+### Changed
+
+- A `Pageable.knownTotal` of `0` is now treated as absent: `Query.paginate` issues the `COUNT`
+  as usual and fetches the content, instead of short-circuiting to an empty page. An empty page
+  is therefore only returned when the database itself reports no elements. Non-zero values are
+  unaffected.
+
 ## [1.4.0] - 2026-07-29
 
 ### Added
