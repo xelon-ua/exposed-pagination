@@ -13,8 +13,7 @@ import kotlinx.serialization.Serializable
  * @property position Optional absolute zero-based starting position within the full result set.
  * @property size The maximum number of elements to include in a single page. `0` to return all elements without pagination.
  * @property sort An optional list of [PageSort] directives to order the results.
- * @property knownTotal Optional caller-supplied total element count. When provided for a paginated
- * query, it is used instead of issuing a dedicated `COUNT` query.
+ * @property knownTotal Optional total element count; on a paginated query it replaces the COUNT.
  */
 @Serializable
 public data class Pageable(
