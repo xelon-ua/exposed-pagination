@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.0] - 2026-07-29
+
+### Added
+
+- `Pageable.knownTotal`: an optional caller-supplied total element count. When provided for a
+  paginated query, `Query.paginate` uses it as `totalElements` instead of issuing a dedicated
+  `COUNT` query. Useful when resuming a traversal whose total was already computed.
+
 ## [1.3.0] - 2026-05-14
 
 ### Changed
