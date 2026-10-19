@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.6.0] - 2026-10-19
+
+### Added
+
+- `defaultOrder` parameter on every `paginate` overload: an order applied only when the `Pageable`
+  is `null` or carries no sort directives, so a default order no longer outranks the client sort.
+- `tiebreaker` parameter on every `paginate` overload: an order applied last, after the client sort
+  or `defaultOrder`, to keep rows with equal sort values in a stable order across pages. Expressions
+  the query is already ordered by are not added again.
+
+### Changed
+
+- The new parameters change the JVM signatures of the `paginate` overloads. Source compatibility is
+  kept, but code compiled against an earlier version must be recompiled.
+
+### Fixed
+
+- The `groupBy` overload of `Query.paginate` now applies the sort to the main query as well as to
+  the key sub-query, so the page content follows the requested order.
+
 ## [1.5.0] - 2026-07-30
 
 ### Changed

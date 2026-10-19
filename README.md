@@ -19,6 +19,8 @@ library: [perracodex/exposed-pagination](https://github.com/perracodex/exposed-p
 - **Page Information**: Access detailed pagination information like total pages, current page index, and more.
 - **Ktor Integration**: Extract pagination directives from Ktor requests with a single function call.
 - **Flexible Pagination**: Support for both page-based and position-based pagination.
+- **Default Order and Tiebreaker**: Apply an order only when the client gives no sort, and append a unique key
+  so that rows with equal sort values keep a stable order across pages.
 
 **Note: The library is designed to work with Exposed DSL queries. There is no support for DAO:**
 
@@ -54,6 +56,7 @@ dependencies {
 
 | **ExposedPagination** | **Exposed**    | Ktor  | **Kotlin** |
 |-----------------------|----------------|-------|------------|
+| 1.6.0                 | \>= 1.3.0      | 3.5.1 | \>= 2.4.10 |
 | 1.5.0                 | \>= 1.3.0      | 3.5.1 | \>= 2.4.10 |
 | 1.4.0                 | \>= 1.3.0      | 3.4.3 | \>= 2.3.21 |
 | 1.3.0                 | \>= 1.3.0      | 3.4.3 | \>= 2.3.21 |
@@ -224,6 +227,35 @@ data class Employee(
     }
 }
 ```
+
+---
+
+#### Default Order and Tiebreaker
+
+`paginate` appends the client sort directives to the query's existing `orderBy`, so an `orderBy` placed before
+`paginate` outranks the client sort. Use the optional `defaultOrder` and `tiebreaker` parameters instead:
+
+- `defaultOrder`: applied only when the `Pageable` is `null` or carries no sort directives.
+- `tiebreaker`: applied last, after the client sort or the `defaultOrder`. Use a unique column (e.g. `id`) so that
+  rows with equal sort values keep a stable order, and no row is repeated or skipped between pages. A column the
+  query is already ordered by is not added again.
+
+```kotlin
+fun findAll(pageable: Pageable?): Page<Employee> {
+    return transaction {
+        EmployeeTable
+            .selectAll()
+            .paginate(
+                pageable = pageable,
+                map = Employee,
+                defaultOrder = listOf(EmployeeTable.createdAt to SortOrder.DESC),
+                tiebreaker = listOf(EmployeeTable.id to SortOrder.ASC)
+            )
+    }
+}
+```
+
+Both parameters are available on every `paginate` overload, including the `groupBy` one, and default to empty.
 
 ---
 
