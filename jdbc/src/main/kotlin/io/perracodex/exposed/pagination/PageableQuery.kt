@@ -6,7 +6,9 @@ package io.perracodex.exposed.pagination
 
 import io.perracodex.exposed.utils.QuerySorter
 import org.jetbrains.exposed.v1.core.Column
+import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.countDistinct
 import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.jdbc.Query
@@ -30,13 +32,21 @@ import org.jetbrains.exposed.v1.jdbc.select
  *         ProductTable
  *             .selectAll()
  *             .where { ProductTable.categoryId eq categoryId }
- *             .paginate(pageable = pageable, map = Product)
+ *             .paginate(
+ *                 pageable = pageable,
+ *                 map = Product,
+ *                 defaultOrder = listOf(ProductTable.createdAt to SortOrder.DESC),
+ *                 tiebreaker = listOf(ProductTable.id to SortOrder.ASC)
+ *             )
  *     }
  * }
  * ```
  *
  * @param pageable Optional [Pageable] containing pagination and sorting information. If `null`, no pagination is applied.
  * @param map Implementation of [MapModel] used to map [ResultRow] instances into domain models of type [T].
+ * @param defaultOrder Order applied only when [pageable] is `null` or carries no sort directives.
+ * @param tiebreaker Order applied last, after the client sort or [defaultOrder], to make the order deterministic.
+ * Expressions the query is already ordered by are skipped.
  * @return A [Page] containing the list of mapped domain models and associated pagination metadata.
  *
  * @see [Page]
@@ -44,7 +54,12 @@ import org.jetbrains.exposed.v1.jdbc.select
  * @see [MapModel]
  * @see [Query.paginate]
  */
-public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page<T> {
+public fun <T : Any> Query.paginate(
+    pageable: Pageable?,
+    map: MapModel<T>,
+    defaultOrder: List<Pair<Expression<*>, SortOrder>> = emptyList(),
+    tiebreaker: List<Pair<Expression<*>, SortOrder>> = emptyList()
+): Page<T> {
     // For paginated queries, a dedicated COUNT query is required since the main query
     // returns only a subset — unless the caller supplies a non-zero `knownTotal`. For
     // unpaginated queries, the total is derived from the fetched content.
@@ -59,7 +74,11 @@ public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page
     }
 
     // Apply pagination and capture the modified query.
-    val paginatedQuery: Query = this.copy().paginate(pageable = pageable)
+    val paginatedQuery: Query = this.copy().paginate(
+        pageable = pageable,
+        defaultOrder = defaultOrder,
+        tiebreaker = tiebreaker
+    )
 
     // Map each row to the domain model.
     val content: List<T> = paginatedQuery.map { resultRow ->
@@ -108,6 +127,9 @@ public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page
  * @param pageable Optional [Pageable] containing pagination and sorting information. If `null`, no pagination is applied.
  * @param map Implementation of [MapModel] used to map [ResultRow] instances into domain models of type [T].
  * @param groupBy The column used to group the top-entity results.
+ * @param defaultOrder Order applied only when [pageable] is `null` or carries no sort directives.
+ * @param tiebreaker Order applied last, after the client sort or [defaultOrder], to make the order deterministic.
+ * Expressions the query is already ordered by are skipped.
  * @return A [Page] containing the list of mapped domain models and associated pagination metadata.
  *
  * @see [Page]
@@ -118,7 +140,9 @@ public fun <T : Any> Query.paginate(pageable: Pageable?, map: MapModel<T>): Page
 public fun <T : Any, K> Query.paginate(
     pageable: Pageable?,
     map: MapModel<T>,
-    groupBy: Column<K>
+    groupBy: Column<K>,
+    defaultOrder: List<Pair<Expression<*>, SortOrder>> = emptyList(),
+    tiebreaker: List<Pair<Expression<*>, SortOrder>> = emptyList()
 ): Page<T> {
     // For paginated queries, a dedicated COUNT DISTINCT query plus a key sub-query are required
     // to slice by top-level entity — unless the caller supplies a non-zero `knownTotal`. For
@@ -141,15 +165,18 @@ public fun <T : Any, K> Query.paginate(
         val paginatedKeys: Query = this.copy()
             .adjustSelect { select(groupBy) }
             .groupBy(groupBy)
-            .paginate(pageable = pageable)
+            .paginate(pageable = pageable, defaultOrder = defaultOrder, tiebreaker = tiebreaker)
 
+        // The sub-query order only selects the keys, so the same order is applied
+        // to the main query to keep the page content in that order.
         this.copy()
             .andWhere { groupBy inSubQuery paginatedKeys }
+            .applyOrder(pageable = pageable, defaultOrder = defaultOrder, tiebreaker = tiebreaker)
             .toList()
     } else {
         // Without pagination the key sub-query would match every top-level entity,
         // so the main query is fetched directly with sorting applied.
-        this.copy().paginate(pageable = pageable).toList()
+        this.copy().paginate(pageable = pageable, defaultOrder = defaultOrder, tiebreaker = tiebreaker).toList()
     }
 
     // Map each group of rows to the corresponding domain model.
@@ -170,7 +197,8 @@ public fun <T : Any, K> Query.paginate(
  * The query instance is modified in-place.
  *
  * This extension function modifies the query in the following ways:
- * 1. **Sorting:** If [pageable] includes sorting directives, they are applied to the [Query].
+ * 1. **Sorting:** If [pageable] includes sorting directives, they are applied to the [Query];
+ *    otherwise [defaultOrder] is applied. [tiebreaker] is applied last in either case.
  * 2. **Limiting and offset:**
  *    - If [pageable.position] is defined, it is used as the absolute zero-based starting position (offset).
  *    - Otherwise, the offset is calculated from the page number as `page * size`.
@@ -179,22 +207,51 @@ public fun <T : Any, K> Query.paginate(
  * and a [Page] containing all domain models is returned.
  *
  * @param pageable Optional [Pageable] containing pagination and sorting information. If `null`, no pagination is applied.
- * @return The modified [Query] with pagination and sorting applied if [pageable] is provided;
- * otherwise, the original [Query] is returned unaltered.
+ * @param defaultOrder Order applied only when [pageable] is `null` or carries no sort directives.
+ * @param tiebreaker Order applied last, after the client sort or [defaultOrder], to make the order deterministic.
+ * Expressions the query is already ordered by are skipped.
+ * @return The modified [Query] with sorting applied, and pagination applied if [pageable] defines a page size.
  *
  * @see [Pageable]
  */
-public fun Query.paginate(pageable: Pageable?): Query {
-    pageable?.let {
-        pageable.sort?.let { sortDirectives ->
-            QuerySorter.applyOrder(query = this, sortDirectives = sortDirectives)
-        }
+public fun Query.paginate(
+    pageable: Pageable?,
+    defaultOrder: List<Pair<Expression<*>, SortOrder>> = emptyList(),
+    tiebreaker: List<Pair<Expression<*>, SortOrder>> = emptyList()
+): Query {
+    applyOrder(pageable = pageable, defaultOrder = defaultOrder, tiebreaker = tiebreaker)
 
-        if (pageable.size > 0) {
-            val startIndex: Long = pageable.position?.toLong() ?: (pageable.page.toLong() * pageable.size.toLong())
-            this.limit(count = pageable.size)
-                .offset(start = startIndex)
+    if (pageable != null && pageable.size > 0) {
+        val startIndex: Long = pageable.position?.toLong() ?: (pageable.page.toLong() * pageable.size.toLong())
+        this.limit(count = pageable.size)
+            .offset(start = startIndex)
+    }
+
+    return this
+}
+
+/**
+ * Applies the client sort from [pageable], or [defaultOrder] when it carries none,
+ * followed by the [tiebreaker] expressions this [Query] is not yet ordered by.
+ * The query instance is modified in-place.
+ */
+private fun Query.applyOrder(
+    pageable: Pageable?,
+    defaultOrder: List<Pair<Expression<*>, SortOrder>>,
+    tiebreaker: List<Pair<Expression<*>, SortOrder>>
+): Query {
+    val sortDirectives: List<Pageable.PageSort>? = pageable?.sort
+    if (sortDirectives.isNullOrEmpty()) {
+        defaultOrder.forEach { (expression, order) ->
+            this.orderBy(column = expression, order = order)
         }
+    } else {
+        QuerySorter.applyOrder(query = this, sortDirectives = sortDirectives)
+    }
+
+    val orderedBy: Set<Expression<*>> = this.orderByExpressions.map { it.first }.toSet()
+    tiebreaker.filterNot { it.first in orderedBy }.forEach { (expression, order) ->
+        this.orderBy(column = expression, order = order)
     }
 
     return this
